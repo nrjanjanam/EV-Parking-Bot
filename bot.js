@@ -5,12 +5,18 @@ const { ActivityHandler, MessageFactory } = require('botbuilder');
 
 const { QnAMaker } = require('botbuilder-ai');
 
+const IntentRecognizer = require("./intentrecognizer")
+
 class EchoBot extends ActivityHandler {
     constructor(configuration, qnaOptions) {
         super();
         if (!configuration) throw new Error('[QnA Bot]: Missng parameter, configuration is required');
         //create a qna connector
         this.qnaMaker = new QnAMaker(configuration.QnAConfiguration, qnaOptions);
+
+        //create a LUIS connector
+        this.intentRecognizer = new IntentRecognizer(configuration.LUISConfiguration);
+        
         // See https://aka.ms/about-bot-activity-message to learn more about the message and other activity types.
         this.onMessage(async (context, next) => {
             // const replyText = `Echo: ${ context.activity.text }`;
@@ -20,6 +26,40 @@ class EchoBot extends ActivityHandler {
 
             //Send User input to QnA Maker
             const qnaResults = await this.qnaMaker.getAnswers(context);
+
+            //Send User input to LUIS 
+            const luisResults = await this.intentRecognizer.executeLuisQuery(context);
+
+            // if(luisResults.luisResult.prediction.topIntent)
+            // {
+            //     console.log(luisResults.luisResult.prediction.topIntent);
+            // }
+            // if(luisResults.intents.findParking){
+            //     console.log(luisResults.intents.findParking.score);
+            // }
+            // if(luisResults.entities.$instance){
+            //     console.log(luisResults.entities.$instance);
+            // }
+            // if(luisResults.entities.$instance.location){
+            //     console.log(luisResults.entities.$instance.location);
+            //     console.log(luisResults.entities.$instance.location[0]);
+            // }
+            
+            //Determine which service to respond with
+            if(luisResults.luisResult.prediction.topIntent === 'findParking' &&
+               luisResults.intents.findParking.score > 0.6 &&
+               luisResults.entities.$instance &&
+               luisResults.entities.$instance.location &&
+               luisResults.entities.$instance.location[0]){
+                    const location = luisResults.entities.$instance.location[0].text;
+                    //call API  with location entity info
+                    const getLocationOfParking = "I found parking with a charging station at " + location;
+                    console.log(getLocationOfParking);
+                    await context.sendActivity(getLocationOfParking);
+                    await next();
+                    return;
+                }
+            
             //If an answer was recieved  from QnAMaker Service, send it back to the user
             if(qnaResults[0]){
                 console.log(qnaResults[0]);
@@ -27,9 +67,9 @@ class EchoBot extends ActivityHandler {
             }
             else{
                 //If no answer were returned from QnAMaker , reply with help
-                await context.sendActivity(`I'm not sure `
-                + 'I found an answer  to your question'
-                + 'You can ask me questions about electric vehicles like "How can I charge my car?"');
+                await context.sendActivity(`I'm not sure I can answer your question`
+                + 'I can find charging stations or electric vehicle parking'
+                + 'Or you can ask me questions about electric vehicles');
             }
             await next();
         });

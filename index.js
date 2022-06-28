@@ -74,9 +74,17 @@ const QnAConfiguration = {
     endpointKey: process.env.QnAAuthKey,
     host: process.env.QnAEndpointHostName
 };
+
+const LUISConfiguration = {
+    applicationId: process.env.LUISAppId,
+    endpointKey: process.env.LUISAPIKey,
+    endpoint: process.env.LUISAPIHostName
+}
+
 // Pass into configuration object
 const configuration = {
-    QnAConfiguration
+    QnAConfiguration,
+    LUISConfiguration
 }
 // Pass the configuration to the EchoBot
 // Create the main dialog.
